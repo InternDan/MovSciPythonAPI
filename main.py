@@ -11,6 +11,11 @@ app.config['DEBUG'] = configs.debug     # displays runtime errors in the browser
 @app.route("/", methods=['GET'])
 def test_thing():
     key = services.GetFile(configs.test_file_path)
+    #temp for testing file, ptstype,ptscolor,ptsx,ptsy
+    ar = key + '--pt--[255,0,0]--40--60'
+    services.TrackVideo(ar)
+    #services.TrackVideo(services.ParseArguments(request)) correct for later
+    services.UploadFile('Tracked-' + key)
     print(key)
     return 'Data'
 

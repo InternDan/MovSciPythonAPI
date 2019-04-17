@@ -9,6 +9,9 @@ import boto3
 import botocore
 import configs
 
+def ParseGetRequest(response):
+    return ''
+
 def GetFile(file_path_key):
     BUCKET_NAME = configs.bucket_name # replace with your bucket name
     KEY = file_path_key # replace with your object key
@@ -38,29 +41,33 @@ def UploadFile(file_path_key):
         else:
             raise
 
-def ParseArguments(argv):
+def ParseArguments(args):
     ptsx = []
     ptsy = []
     ptstype = []
     ptscolor = []
-    numArgs = len(argv)
+    numArgs = len(args)
     ct=0
     for i in range(0,numArgs):
         if ct == 0:
             ct = 1
-            ptstype.append(argv[i])
+            print(args[i])
+            ptstype.append(args[i])
             continue
         if ct == 1:
             ct = 2
-            ptscolor.append(argv[i])
+            print(args[i])
+            ptscolor.append(args[i])
             continue
         if ct == 2:
             ct = 3
-            ptsx.append(int(argv[i]))
+            print(args[i])
+            ptsx.append(int(args[i]))
             continue
         if ct == 3:
             ct = 0
-            ptsy.append(int(argv[i]))
+            print(args[i])
+            ptsy.append(int(args[i]))
             continue
     return ptstype,ptscolor,ptsx,ptsy
 
@@ -164,3 +171,56 @@ def DrawPoints(currImg,ptsTracked,ptscolor,ptstype,numPoints):
                 colCount = 0
             continue
     return currImg
+
+def TrackVideo(args):#Set up to return web appropriate responses
+    #get path to vid
+    args = args.split('--')
+    cap = cv2.VideoCapture(args[0])
+    print(args)
+    #set parameters for tracking. Eventually set up as passed from webpage through command line arguments
+    lkparams = dict( winSize  = (30,30),
+                  maxLevel = 3,
+                  criteria = (cv2.TERM_CRITERIA_EPS, 20, 0.1),
+                  flags = 0,
+                  minEigThreshold = 0.001)
+    
+    ptstype,ptscolor,ptsx,ptsy = ParseArguments(args[1:])
+    numPoints = len(ptstype)
+    ptsTracked = []
+    for i in range(0,len(ptsx)):
+        ptsTracked = np.append(ptsTracked,[ptsx[i],ptsy[i]])
+    currImg = None
+    currImgGray = None
+    #prevImg = None
+    prevImgGray = None
+
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    #height = cv2.CAP_PROP_FRAME_HEIGHT
+    #width = cv2.CAP_PROP_FRAME_WIDTH
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    ct = 1
+    
+    while(cap.isOpened()):
+        ret, currImg = cap.read()
+        #file.write('getting frame')
+        if ret==True:
+            currImgGray = cv2.cvtColor(currImg, cv2.COLOR_BGR2GRAY)
+            if ct == 1:    
+                video = cv2.VideoWriter(os.path.join('Tracked-' + args[0]) , fourcc ,int(fps) , (currImg.shape[1], currImg.shape[0]) )
+                currImg = DrawPoints(currImg,ptsTracked,ptscolor,ptstype,numPoints)
+                prevImgGray = currImgGray
+                video.write(currImg)
+                ct=2
+            else:
+                #file.write('tracking frame')
+                ptsTracked = TrackPoints(prevImgGray,currImgGray,ptsTracked,lkparams,numPoints,ptscolor,ptstype)#,
+                currImg2 = DrawPoints(currImg,ptsTracked,ptscolor,ptstype,numPoints)
+                video.write(currImg2)
+                prevImg = currImg
+                prevImgGray = currImgGray
+        else:#Release if done
+            #file.write('cleaning')
+            #file.close()
+            cap.release()
+            video.release()
+            
